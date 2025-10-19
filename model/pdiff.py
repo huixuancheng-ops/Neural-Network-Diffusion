@@ -1,5 +1,5 @@
 from .diffusion import GaussianDiffusionTrainer
-from .denoiser import OneDimCNN
+from .denoiser import TransformerDenoiser
 from torch.nn import functional as F
 from torch import nn
 import torch
@@ -13,10 +13,14 @@ class PDiff(nn.Module):
     def __init__(self, sequence_length):
         super().__init__()
         self.sequence_length = sequence_length
-        self.net = OneDimCNN(
-            layer_channels=self.config["layer_channels"],
-            model_dim=self.config["model_dim"],
-            kernel_size=self.config["kernel_size"],
+        denoiser_cfg = self.config.get("transformer_config", {})
+        self.net = TransformerDenoiser(
+            embed_dim=denoiser_cfg.get("embed_dim", 128),
+            num_layers=denoiser_cfg.get("num_layers", 4),
+            num_heads=denoiser_cfg.get("num_heads", 8),
+            mlp_ratio=denoiser_cfg.get("mlp_ratio", 4.0),
+            dropout=denoiser_cfg.get("dropout", 0.0),
+            time_embed_dim=denoiser_cfg.get("time_embed_dim", None),
         )
         self.diffusion_trainer = GaussianDiffusionTrainer(
             model=self.net,
