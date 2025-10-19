@@ -1,5 +1,5 @@
 from .diffusion import GaussianDiffusionTrainer
-from .denoiser import OneDimCNN
+from .denoiser import OneDimCNN, TransformerDenoiser
 from torch.nn import functional as F
 from torch import nn
 import torch
@@ -13,11 +13,27 @@ class PDiff(nn.Module):
     def __init__(self, sequence_length):
         super().__init__()
         self.sequence_length = sequence_length
-        self.net = OneDimCNN(
-            layer_channels=self.config["layer_channels"],
-            model_dim=self.config["model_dim"],
-            kernel_size=self.config["kernel_size"],
-        )
+        arch = self.config.get("arch", "transformer")
+        if arch == "transformer":
+            d_model = self.config["model_dim"]
+            self.net = TransformerDenoiser(
+                sequence_length=d_model,  # operate over VAE latent length
+                time_embedding_dim=self.config.get("time_embedding_dim", d_model),
+                d_model=d_model,
+                n_layers=self.config.get("n_layers", 4),
+                n_heads=self.config.get("n_heads", 8),
+                dim_feedforward=self.config.get("ff_dim", 4 * d_model),
+                dropout=self.config.get("dropout", 0.1),
+                use_positional_encoding=self.config.get("use_positional_encoding", True),
+            )
+        elif arch == "cnn":
+            self.net = OneDimCNN(
+                layer_channels=self.config["layer_channels"],
+                model_dim=self.config["model_dim"],
+                kernel_size=self.config["kernel_size"],
+            )
+        else:
+            raise ValueError(f"Unknown denoiser arch: {arch}")
         self.diffusion_trainer = GaussianDiffusionTrainer(
             model=self.net,
             beta=self.config["beta"],
