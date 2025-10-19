@@ -180,7 +180,7 @@ def train(args: argparse.Namespace) -> None:
     diff_sched = CosineAnnealingLR(diff_optim, T_max=args.diffusion_steps)
 
     global_step = 0
-    best_loss = float("inf"))
+    best_loss = float("inf")
     bad_steps = 0
     last_time_save = time.time()
 
@@ -278,8 +278,9 @@ def try_generate(args: argparse.Namespace, model: DiffusionModel, vae: OneDimVAE
             import wandb
             wandb.log({"generated_norm": gen_norm})
         # Optionally save to dataset generated path for downstream testing
-        save_path = train_set.generated_path
-        train_set.save_params(pred, save_path=save_path)
+        save_path = type(train_set).generated_path
+        tokens = pred.view(-1, args.dim_per_token)
+        train_set.save_params(tokens, save_path=save_path)
     except Exception as e:  # noqa: BLE001
         print(f"Generation skipped due to error: {e}")
 
